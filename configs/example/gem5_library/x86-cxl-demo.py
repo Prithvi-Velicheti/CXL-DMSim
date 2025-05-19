@@ -28,8 +28,9 @@
 
 This script shows an example of running a CXL-DMSim simulation
 using the gem5 library and defaults to simulating CXL ASIC Device.
-This simulation boots Ubuntu 18.04 using 1 Atomic CPU
-cores. The simulation then switches to 1 TIMING CPU core to run the lmbench_cxl.sh.
+This simulation boots Ubuntu 18.04 using 1 KVM (so the Linux overheads are not very accurate).
+Need to use atomic CPU for that. 
+ The simulation then switches to 1 TIMING CPU core to run the lmbench_cxl.sh.
 
 Usage
 -----
@@ -54,10 +55,13 @@ from gem5.simulate.simulator import Simulator
 from gem5.simulate.exit_event import ExitEvent
 from gem5.resources.resource import DiskImageResource, KernelResource
 
+
+
 # This runs a check to ensure the gem5 binary is compiled to X86 and to the
 # MESI Three Level coherence protocol.
 requires(
     isa_required=ISA.X86,
+    kvm_required=True,
 )
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_shared_l3_cache_hierarchy import (
     PrivateL1PrivateL2SharedL3CacheHierarchy,
@@ -71,7 +75,8 @@ parser.add_argument('--test_cmd', type=str, choices=['lmbench_cxl.sh',
                                                      'merci_cxl.sh', 
                                                      'merci_dram+cxl.sh',
                                                      'stream_dram.sh',
-                                                     'stream_cxl.sh'
+                                                     'stream_cxl.sh',
+                                                     'run_mlc.sh'
                                                      ], default='lmbench_cxl.sh', help='Choose a test to run.')
 parser.add_argument('--num_cpus', type=int, default=1, help='Number of CPUs')
 parser.add_argument('--cpu_type', type=str, choices=['TIMING', 'O3'], default='TIMING', help='CPU type')
@@ -105,7 +110,7 @@ else:
 # cores for the command we wish to run after boot.
 
 processor = SimpleSwitchableProcessor(
-    starting_core_type=CPUTypes.ATOMIC,
+    starting_core_type=CPUTypes.KVM,
     switch_core_type = CPUTypes.O3 if args.cpu_type == 'O3' else CPUTypes.TIMING,
     isa=ISA.X86,
     num_cores=args.num_cpus,
@@ -140,7 +145,7 @@ command = (
 # Please modify the paths of kernel and disk_image according to the location of your files.
 board.set_kernel_disk_workload(
     kernel=KernelResource(local_path='/home/velicheti/kandou/sim/CXL-DMSim/cxldmsim_fs/vmlinux_20240920'),
-    disk_image=DiskImageResource(local_path='/home/velicheti/kandou/sim/CXL-DMSim/cxldmsim_fs/parsec.img'),
+    disk_image=DiskImageResource(local_path='/home/velicheti/kandou/sim/CXL-DMSim/cxldmsim_fs/parsec_mod.img'),
     readfile_contents=command,
 )
 
@@ -152,7 +157,7 @@ simulator = Simulator(
 )
 
 print("Running the simulation")
-print("Using Atomic cpu")
+print("Using KVM cpu for boot")
 
 m5.stats.reset()
 
